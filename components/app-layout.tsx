@@ -8,6 +8,7 @@ import StudentCourses from './pages/student-courses'
 import StudentPerformance from './pages/student-performance'
 import StudentRecommendations from './pages/student-recommendations'
 import StudentQuizzes from './pages/student-quizzes'
+import StudentDoubts from './pages/student-doubts'
 import StudentTakeQuiz from './pages/student-take-quiz'
 import StudentResources from './pages/student-resources'
 import StudentAICard from './pages/student-ai-card' // ✅ ADDED
@@ -16,6 +17,7 @@ import ProfessorClasses from './pages/professor-classes'
 import ProfessorClassDetail from './pages/professor-class-detail'
 import ProfessorQuizzes from './pages/professor-quizzes'
 import ProfessorCreateQuiz from './pages/professor-create-quiz'
+import ProfessorDoubts from './pages/professor-doubts'
 import ProfessorResources from './pages/professor-resources'
 
 interface AppLayoutProps {
@@ -24,8 +26,8 @@ interface AppLayoutProps {
   children?: React.ReactNode
 }
 
-type StudentPage = 'dashboard' | 'courses' | 'performance' | 'recommendations' | 'quizzes' | 'take-quiz' | 'resources' | 'ai-card' // ✅ ADDED
-type ProfessorPage = 'dashboard' | 'classes' | 'class-detail' | 'quizzes' | 'create-quiz' | 'resources'
+type StudentPage = 'dashboard' | 'courses' | 'performance' | 'recommendations' | 'quizzes' | 'take-quiz' | 'resources' | 'ai-card' | 'doubts' // ✅ ADDED
+type ProfessorPage = 'dashboard' | 'classes' | 'class-detail' | 'quizzes' | 'create-quiz' | 'resources' | 'doubts'
 
 export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -47,6 +49,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
   const studentMenuItems = [
     { label: 'Dashboard', key: 'dashboard', icon: '📊' },
     { label: 'AI Card', key: 'ai-card', icon: '🤖' }, // ✅ ADDED
+    { label: 'Doubts', key: 'doubts', icon: '❓' },
     { label: 'Courses', key: 'courses', icon: '📚' },
     { label: 'Performance', key: 'performance', icon: '📈' },
     { label: 'Quizzes', key: 'quizzes', icon: '✏' },
@@ -56,6 +59,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
 
   const professorMenuItems = [
     { label: 'Analytics', key: 'dashboard', icon: '📊' },
+    { label: 'Student Doubts', key: 'doubts', icon: '❓' },
     { label: 'Classes', key: 'classes', icon: '👥' },
     { label: 'Quizzes', key: 'quizzes', icon: '✏' },
     { label: 'Resources', key: 'resources', icon: '📁' },
@@ -65,7 +69,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
   const menuKey = userRole === 'student' ? studentPage : professorPage
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <header className="border-b border-slate-700 bg-slate-800/50 backdrop-blur sticky top-0 z-40">
         <div className="px-4 py-4 flex items-center justify-between">
@@ -130,6 +134,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
             <>
               {studentPage === 'dashboard' && <StudentDashboard />}
               {studentPage === 'ai-card' && <StudentAICard />} {/* ✅ ADDED */}
+              {studentPage === 'doubts' && <StudentDoubts />}
               {studentPage === 'courses' && <StudentCourses />}
               {studentPage === 'performance' && <StudentPerformance />}
               {studentPage === 'quizzes' && (
@@ -147,6 +152,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
           ) : (
             <>
               {professorPage === 'dashboard' && <ProfessorDashboard />}
+              {professorPage === 'doubts' && <ProfessorDoubts />}
               {professorPage === 'classes' && (
                 <ProfessorClasses onSelectClass={(classId) => handleProfessorNavigation('class-detail', classId)} />
               )}
