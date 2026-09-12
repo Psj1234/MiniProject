@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
+import LearnerPerformance from './learner-performance'
+import { Trophy, BarChart3, Layers } from 'lucide-react'
 
 export default function ProfessorDashboard() {
   const [loading, setLoading] = useState(true)
@@ -18,6 +20,7 @@ export default function ProfessorDashboard() {
   })
   const [performanceData, setPerformanceData] = useState<any[]>([])
   const [distributionData, setDistributionData] = useState<any[]>([])
+  const [dashboardTab, setDashboardTab] = useState<'all' | 'rankings' | 'overview'>('all')
   
   const supabase = createClient()
 
@@ -303,112 +306,176 @@ export default function ProfessorDashboard() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Analytics Overview</h1>
-        <p className="text-slate-400">View aggregated analytics across all your classes</p>
+    <div className="max-w-7xl mx-auto p-6 space-y-8">
+      {/* Top Header & View Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-700/80 pb-5">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Professor Dashboard</h1>
+          <p className="text-slate-400 text-sm mt-0.5">
+            Student analytics, learner pace classification, and performance rankings
+          </p>
+        </div>
+
+        {/* View Switcher Buttons */}
+        <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 p-1 rounded-lg">
+          <button
+            onClick={() => setDashboardTab('all')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+              dashboardTab === 'all'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            Overview & Rankings
+          </button>
+          <button
+            onClick={() => setDashboardTab('rankings')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+              dashboardTab === 'rankings'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            Learner Rankings
+          </button>
+          <button
+            onClick={() => setDashboardTab('overview')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+              dashboardTab === 'overview'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+            Class Analytics
+          </button>
+        </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-300">Total Students</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{stats.totalStudents}</p>
-            <p className="text-xs text-slate-400 mt-1">Across {stats.courseCount} course{stats.courseCount !== 1 ? 's' : ''}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-300">Class Average</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{stats.classAverage}%</p>
-            <p className="text-xs text-slate-400 mt-1">Overall performance</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-300">Fast Learners</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{stats.fastLearners}</p>
-            <p className="text-xs text-slate-400 mt-1">
-              {stats.totalStudents > 0 ? Math.round((stats.fastLearners / stats.totalStudents) * 100) : 0}% of total
+      {/* --- SECTION 1: Class Analytics Overview --- */}
+      {(dashboardTab === 'all' || dashboardTab === 'overview') && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-400" />
+              Class Analytics Overview
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Aggregated student distribution and historical learning pace across your courses
             </p>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-300">Need Support</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{stats.slowLearners}</p>
-            <p className="text-xs text-slate-400 mt-1">Slow learners requiring assistance</p>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-300">Total Students</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-white">{stats.totalStudents}</p>
+                <p className="text-xs text-slate-400 mt-1">Across {stats.courseCount} course{stats.courseCount !== 1 ? 's' : ''}</p>
+              </CardContent>
+            </Card>
 
-      {/* Performance by Learning Pace */}
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white">Class Performance by Learning Pace</CardTitle>
-          <CardDescription className="text-slate-400">Average scores and student distribution</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {performanceData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="category" stroke="#9ca3af" />
-                <YAxis yAxisId="left" stroke="#9ca3af" />
-                <YAxis yAxisId="right" orientation="right" stroke="#9ca3af" />
-                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="avgScore" fill="#3b82f6" name="Avg Score (%)" />
-                <Bar yAxisId="right" dataKey="students" fill="#10b981" name="Students" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-slate-400">
-              No performance data available
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-300">Class Average</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-white">{stats.classAverage}%</p>
+                <p className="text-xs text-slate-400 mt-1">Overall performance</p>
+              </CardContent>
+            </Card>
 
-      {/* Learner Distribution Over Time */}
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white">Student Distribution Trend</CardTitle>
-          <CardDescription className="text-slate-400">How student categories evolve each week</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {distributionData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={distributionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="week" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
-                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
-                <Legend />
-                <Line type="monotone" dataKey="fastLearners" stroke="#3b82f6" strokeWidth={2} name="Fast Learners" />
-                <Line type="monotone" dataKey="moderate" stroke="#10b981" strokeWidth={2} name="Moderate" />
-                <Line type="monotone" dataKey="slowLearners" stroke="#f59e0b" strokeWidth={2} name="Slow Learners" />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-slate-400">
-              No distribution data available
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-300">Fast Learners</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-emerald-400">{stats.fastLearners}</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {stats.totalStudents > 0 ? Math.round((stats.fastLearners / stats.totalStudents) * 100) : 0}% of total
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-slate-300">Need Support</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-amber-400">{stats.slowLearners}</p>
+                <p className="text-xs text-slate-400 mt-1">Slow learners requiring assistance</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Performance by Learning Pace */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Class Performance by Learning Pace</CardTitle>
+              <CardDescription className="text-slate-400">Average scores and student distribution</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {performanceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={performanceData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="category" stroke="#9ca3af" />
+                    <YAxis yAxisId="left" stroke="#9ca3af" />
+                    <YAxis yAxisId="right" orientation="right" stroke="#9ca3af" />
+                    <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
+                    <Legend />
+                    <Bar yAxisId="left" dataKey="avgScore" fill="#3b82f6" name="Avg Score (%)" />
+                    <Bar yAxisId="right" dataKey="students" fill="#10b981" name="Students" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-slate-400">
+                  No performance data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Learner Distribution Over Time */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white">Student Distribution Trend</CardTitle>
+              <CardDescription className="text-slate-400">How student categories evolve each week</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {distributionData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={distributionData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="week" stroke="#9ca3af" />
+                    <YAxis stroke="#9ca3af" />
+                    <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="fastLearners" stroke="#3b82f6" strokeWidth={2} name="Fast Learners" />
+                    <Line type="monotone" dataKey="moderate" stroke="#10b981" strokeWidth={2} name="Moderate" />
+                    <Line type="monotone" dataKey="slowLearners" stroke="#f59e0b" strokeWidth={2} name="Slow Learners" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-slate-400">
+                  No distribution data available
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* --- SECTION 2: Learner Performance & Rankings --- */}
+      {(dashboardTab === 'all' || dashboardTab === 'rankings') && (
+        <div className={`space-y-6 ${dashboardTab === 'all' ? 'pt-6 border-t border-slate-700/80' : ''} animate-in fade-in duration-200`}>
+          <LearnerPerformance />
+        </div>
+      )}
     </div>
   )
 }
