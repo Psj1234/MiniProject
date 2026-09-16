@@ -19,7 +19,8 @@ import {
   Send,
   HelpCircle,
   X,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert
 } from 'lucide-react'
 
 interface StudentAssignmentItem {
@@ -80,6 +81,18 @@ export default function StudentAssignments() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [attemptMessage, setAttemptMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null)
+  const [copyPasteWarning, setCopyPasteWarning] = useState<string | null>(null)
+
+  const triggerCopyPasteBlock = (actionType: 'paste' | 'copy' | 'drop' = 'paste') => {
+    if (actionType === 'copy') {
+      setCopyPasteWarning('Copying text from the answer section is disabled for academic integrity.')
+    } else if (actionType === 'drop') {
+      setCopyPasteWarning('Drag-and-drop text insertion is disabled. Please type your answer manually.')
+    } else {
+      setCopyPasteWarning('Pasting text into answers is disabled for academic integrity. Please type your answer manually.')
+    }
+    setTimeout(() => setCopyPasteWarning(null), 4000)
+  }
 
   // Feedback Modal State
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
@@ -586,6 +599,22 @@ export default function StudentAssignments() {
           </div>
         )}
 
+        {/* Copy-Paste Block Notification Banner */}
+        {copyPasteWarning && (
+          <div className="p-3 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs flex items-center justify-between sticky top-4 z-30 shadow-lg backdrop-blur-md">
+            <span className="flex items-center gap-2 font-medium">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              {copyPasteWarning}
+            </span>
+            <button
+              onClick={() => setCopyPasteWarning(null)}
+              className="text-amber-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Questions List */}
         <div className="space-y-6">
           {assignmentQuestions.map((q, idx) => {
@@ -623,13 +652,58 @@ export default function StudentAssignments() {
                     <div className="space-y-2">
                       <textarea
                         rows={6}
-                        placeholder="Write your detailed explanation, analysis, or solution here..."
+                        placeholder="Write your detailed explanation, analysis, or solution here (copy-paste disabled, please type manually)..."
                         value={currentAnswer}
                         onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                        className="w-full bg-slate-900/90 border border-slate-700 text-white rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-sans"
+                        onPaste={(e) => {
+                          e.preventDefault()
+                          triggerCopyPasteBlock('paste')
+                        }}
+                        onCopy={(e) => {
+                          e.preventDefault()
+                          triggerCopyPasteBlock('copy')
+                        }}
+                        onCut={(e) => {
+                          e.preventDefault()
+                          triggerCopyPasteBlock('copy')
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          triggerCopyPasteBlock('drop')
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          triggerCopyPasteBlock('paste')
+                        }}
+                        onKeyDown={(e) => {
+                          // Block Ctrl+V / Cmd+V (Paste)
+                          if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+                            e.preventDefault()
+                            triggerCopyPasteBlock('paste')
+                          }
+                          // Block Shift+Insert (Windows Paste)
+                          if (e.shiftKey && e.key === 'Insert') {
+                            e.preventDefault()
+                            triggerCopyPasteBlock('paste')
+                          }
+                          // Block Ctrl+C / Cmd+C (Copy)
+                          if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+                            e.preventDefault()
+                            triggerCopyPasteBlock('copy')
+                          }
+                          // Block Ctrl+X / Cmd+X (Cut)
+                          if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
+                            e.preventDefault()
+                            triggerCopyPasteBlock('copy')
+                          }
+                        }}
+                        className="w-full bg-slate-900/90 border border-slate-700 text-white rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-sans select-none"
                       />
-                      <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>Markdown supported</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span className="flex items-center gap-1 text-amber-400/80 font-medium">
+                          <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                          Copy-paste disabled • Manual typing required
+                        </span>
                         <span>{wordCount} words</span>
                       </div>
                     </div>

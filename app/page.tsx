@@ -344,7 +344,7 @@ export default function Home() {
       <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-slate-800 border-slate-700">
           <CardHeader className="space-y-2">
-            <CardTitle className="text-2xl text-white">Vidyamitra</CardTitle>
+            <CardTitle className="text-2xl text-white">Pragya</CardTitle>
             <CardDescription className="text-slate-400">
               Analytics-driven learning management system
             </CardDescription>

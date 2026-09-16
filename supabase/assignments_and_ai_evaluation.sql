@@ -1,5 +1,5 @@
 -- ==============================================================================
--- VidyaMitra: Professor Assignments + AI-Based Subjective Evaluation Migration
+-- Pragya: Professor Assignments + AI-Based Subjective Evaluation Migration
 -- ==============================================================================
 
 -- 1. Create assignments table

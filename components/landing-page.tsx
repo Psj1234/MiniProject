@@ -17,7 +17,7 @@ export default function LandingPage({
       {/* Navigation Bar */}
       <header className="sticky top-0 z-50 border-b border-slate-700 bg-slate-800/50 backdrop-blur">
         <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold text-blue-400">VidyaMitra</div>
+          <div className="text-2xl font-bold text-blue-400">Pragya</div>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
@@ -194,9 +194,9 @@ export default function LandingPage({
       {/* About Section */}
       <section id="about" className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center space-y-6">
-          <h2 className="text-4xl font-bold text-white">About VidyaMitra</h2>
+          <h2 className="text-4xl font-bold text-white">About Pragya</h2>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-            VidyaMitra is a learning management system designed to bridge the
+            Pragya is a learning management system designed to bridge the
             gap between traditional education and personalized learning. We
             believe every student learns differently, and our platform adapts to
             your unique needs.
@@ -205,7 +205,7 @@ export default function LandingPage({
             onClick={onGetStarted}
             className="bg-blue-600 hover:bg-blue-700 text-white text-lg h-12 px-8"
           >
-            Join VidyaMitra Today
+            Join Pragya Today
           </Button>
         </div>
       </section>
@@ -215,7 +215,7 @@ export default function LandingPage({
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="text-white font-semibold mb-4">VidyaMitra</h3>
+              <h3 className="text-white font-semibold mb-4">Pragya</h3>
               <p className="text-slate-400 text-sm">
                 Smarter education for everyone
               </p>
@@ -257,13 +257,13 @@ export default function LandingPage({
             </div>
             <div>
               <h4 className="text-slate-300 font-semibold mb-4">Contact</h4>
-              <p className="text-slate-400 text-sm">support@vidyamitra.com</p>
+              <p className="text-slate-400 text-sm">support@pragya.com</p>
             </div>
           </div>
 
           <div className="border-t border-slate-700 pt-8">
             <p className="text-center text-slate-500 text-sm">
-              © 2025 VidyaMitra. All rights reserved.
+              © 2025 Pragya. All rights reserved.
             </p>
           </div>
         </div>

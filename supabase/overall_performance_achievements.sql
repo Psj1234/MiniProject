@@ -1,5 +1,5 @@
 -- ==============================================================================
--- VidyaMitra: Student Overall Performance & Achievements Migration
+-- Pragya: Student Overall Performance & Achievements Migration
 -- ==============================================================================
 
 -- 1. Add CGPA field to profiles table if it does not already exist
