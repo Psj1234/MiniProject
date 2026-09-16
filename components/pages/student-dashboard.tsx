@@ -22,6 +22,7 @@ export default function StudentDashboard() {
     avgScore: 0,
     enrolledCourses: 0,
     fastCourses: 0,
+    pendingAssignments: 0,
     studyHours: 24.5
   })
 
@@ -185,10 +186,24 @@ export default function StudentDashboard() {
 
       const fastCourses = subjects.filter(s => s.pace.includes('Fast')).length
 
+      // Fetch pending subjective assignments
+      let pendingAssignments = 0
+      try {
+        const { count } = await supabase
+          .from('assignment_recipients')
+          .select('id', { count: 'exact', head: true })
+          .eq('student_uid', profile.student_id)
+          .in('status', ['assigned', 'in_progress'])
+        pendingAssignments = count || 0
+      } catch (e) {
+        console.warn('assignment_recipients query notice in student dashboard:', e)
+      }
+
       console.log('✅ Dashboard data processed:', {
         subjects: subjects.length,
         avgScore,
-        fastCourses
+        fastCourses,
+        pendingAssignments
       })
 
       setSubjectsData(subjects)
@@ -196,7 +211,8 @@ export default function StudentDashboard() {
         avgScore,
         enrolledCourses: subjects.length,
         fastCourses,
-        studyHours: 24.5 // This would need to come from a time tracking feature
+        pendingAssignments,
+        studyHours: 24.5
       })
 
     } catch (error) {
@@ -268,11 +284,11 @@ export default function StudentDashboard() {
 
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-300">Study Hours</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-300">Active Assignments</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-white">{stats.studyHours}</p>
-            <p className="text-xs text-slate-400 mt-1">This week</p>
+            <p className="text-3xl font-bold text-amber-400">{stats.pendingAssignments}</p>
+            <p className="text-xs text-slate-400 mt-1">Pending subjective tasks</p>
           </CardContent>
         </Card>
       </div>
@@ -313,7 +329,7 @@ export default function StudentDashboard() {
                     <div className="w-full bg-slate-600 rounded-full h-2">
                       <div
                         className="bg-blue-500 h-2 rounded-full transition-all"
-                        style={{ width: '${subject.progress}%' }}
+                        style={{ width: `${subject.progress}%` }}
                       />
                     </div>
                   </div>

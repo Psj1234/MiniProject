@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
 import LearnerPerformance from './learner-performance'
-import { Trophy, BarChart3, Layers } from 'lucide-react'
+import ProfessorAssignments from './professor-assignments'
+import { Trophy, BarChart3, Layers, FileText } from 'lucide-react'
 
 export default function ProfessorDashboard() {
   const [loading, setLoading] = useState(true)
@@ -20,7 +21,7 @@ export default function ProfessorDashboard() {
   })
   const [performanceData, setPerformanceData] = useState<any[]>([])
   const [distributionData, setDistributionData] = useState<any[]>([])
-  const [dashboardTab, setDashboardTab] = useState<'all' | 'rankings' | 'overview'>('all')
+  const [dashboardTab, setDashboardTab] = useState<'all' | 'rankings' | 'assignments' | 'overview'>('all')
   
   const supabase = createClient()
 
@@ -341,6 +342,17 @@ export default function ProfessorDashboard() {
             Learner Rankings
           </button>
           <button
+            onClick={() => setDashboardTab('assignments')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
+              dashboardTab === 'assignments'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-400" />
+            Assignments
+          </button>
+          <button
             onClick={() => setDashboardTab('overview')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
               dashboardTab === 'overview'
@@ -474,6 +486,13 @@ export default function ProfessorDashboard() {
       {(dashboardTab === 'all' || dashboardTab === 'rankings') && (
         <div className={`space-y-6 ${dashboardTab === 'all' ? 'pt-6 border-t border-slate-700/80' : ''} animate-in fade-in duration-200`}>
           <LearnerPerformance />
+        </div>
+      )}
+
+      {/* --- SECTION 3: Subjective Assignments & AI Evaluation --- */}
+      {dashboardTab === 'assignments' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <ProfessorAssignments />
         </div>
       )}
     </div>

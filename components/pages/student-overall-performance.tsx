@@ -50,6 +50,7 @@ export default function StudentOverallPerformance() {
 
   // Academic and achievements states
   const [quizScore, setQuizScore] = useState<number>(0)
+  const [assignmentScore, setAssignmentScore] = useState<number | null>(null)
   const [achievements, setAchievements] = useState<RawAchievement[]>([])
 
   // CGPA prompt/modal state
@@ -206,6 +207,33 @@ export default function StudentOverallPerformance() {
         } catch (e) {
           console.warn('student_achievements table may not be queried yet:', e)
         }
+
+        // 5. Fetch Assignment performance from assignment_submissions
+        try {
+          const { data: assignSubs, error: assignSubErr } = await supabase
+            .from('assignment_submissions')
+            .select('final_score, percentage, grading_status')
+            .eq('student_uid', profileData.student_id)
+            .eq('is_draft', false)
+            .eq('grading_status', 'graded')
+
+          if (!assignSubErr && assignSubs && assignSubs.length > 0) {
+            const validPercents = assignSubs
+              .map((s) => Number(s.percentage))
+              .filter((p) => !isNaN(p))
+            if (validPercents.length > 0) {
+              const avg = validPercents.reduce((a, b) => a + b, 0) / validPercents.length
+              setAssignmentScore(Math.round(avg * 10) / 10)
+            } else {
+              setAssignmentScore(null)
+            }
+          } else {
+            setAssignmentScore(null)
+          }
+        } catch (e) {
+          console.warn('assignment_submissions query fallback:', e)
+          setAssignmentScore(null)
+        }
       }
     } catch (err) {
       console.error('Error fetching student overall data:', err)
@@ -223,9 +251,10 @@ export default function StudentOverallPerformance() {
     return calculateOverallStudentScore({
       cgpa: studentProfile?.cgpa ?? null,
       quizScore,
+      assignmentScore,
       achievements
     })
-  }, [studentProfile?.cgpa, quizScore, achievements])
+  }, [studentProfile?.cgpa, quizScore, assignmentScore, achievements])
 
   // Save CGPA
   const handleSaveCgpa = async (e: React.FormEvent) => {
@@ -679,7 +708,7 @@ export default function StudentOverallPerformance() {
               </p>
             </div>
 
-            {/* 2. Quiz Performance (25%) */}
+            {/* 2. Quiz Performance */}
             <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-300 flex items-center gap-1.5">
@@ -687,21 +716,43 @@ export default function StudentOverallPerformance() {
                   Quiz & Tests
                 </span>
                 <span className="font-mono text-blue-400 font-bold">
-                  {scoreBreakdown.quiz.contribution} / 25
+                  {scoreBreakdown.quiz.contribution} / {scoreBreakdown.quiz.maxContribution}
                 </span>
               </div>
               <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                 <div
                   className="bg-blue-400 h-full rounded-full transition-all"
-                  style={{ width: `${(scoreBreakdown.quiz.contribution / 25) * 100}%` }}
+                  style={{ width: `${(scoreBreakdown.quiz.contribution / (scoreBreakdown.quiz.maxContribution || 1)) * 100}%` }}
                 />
               </div>
               <p className="text-[11px] text-slate-400">
-                Score: {scoreBreakdown.quiz.score}% • Weight: 25%
+                Score: {scoreBreakdown.quiz.score}% • Weight: {scoreBreakdown.quiz.maxContribution}%
               </p>
             </div>
 
-            {/* 3. Hackathons (15%) */}
+            {/* 3. Subjective Assignments (10%) */}
+            <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-4 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-teal-400" />
+                  Assignments (Groq AI)
+                </span>
+                <span className="font-mono text-teal-400 font-bold">
+                  {scoreBreakdown.assignment.contribution} / {scoreBreakdown.assignment.maxContribution}
+                </span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-teal-400 h-full rounded-full transition-all"
+                  style={{ width: `${(scoreBreakdown.assignment.contribution / (scoreBreakdown.assignment.maxContribution || 1)) * 100}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {scoreBreakdown.assignment.isMissing ? 'Absorbed by quizzes' : `Score: ${scoreBreakdown.assignment.score}%`} • Weight: {scoreBreakdown.assignment.maxContribution}%
+              </p>
+            </div>
+
+            {/* 4. Hackathons (15%) */}
             <div className="bg-slate-900/60 border border-slate-700/60 rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-300 flex items-center gap-1.5">

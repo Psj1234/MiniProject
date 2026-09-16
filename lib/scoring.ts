@@ -8,7 +8,8 @@
 // 1. Centralized Category Weights (Must sum to 1.00 / 100%)
 export const SCORE_WEIGHTS = {
   academic: 0.30,           // 30% CGPA / Academic Performance
-  quiz: 0.25,               // 25% Existing Quiz & Assessment Performance
+  quiz: 0.15,               // 15% Existing Quiz & Assessment Performance
+  assignment: 0.10,         // 10% Professor Assignments & AI Evaluations
   hackathons: 0.15,         // 15% Hackathons
   codingCompetitions: 0.10, // 10% Coding Competitions
   research: 0.10,           // 10% Research & Publications
@@ -155,12 +156,14 @@ export function calculateAcademicScore(
 export interface ScoreComponents {
   cgpa: number | null
   quizScore: number
+  assignmentScore?: number | null
   achievements: RawAchievement[]
 }
 
 export interface ScoreBreakdown {
   academic: { score: number; contribution: number; maxContribution: number; isMissing: boolean }
   quiz: { score: number; contribution: number; maxContribution: number }
+  assignment: { score: number; contribution: number; maxContribution: number; isMissing: boolean }
   hackathons: { score: number; contribution: number; maxContribution: number; count: number }
   coding: { score: number; contribution: number; maxContribution: number; count: number }
   research: { score: number; contribution: number; maxContribution: number; count: number }
@@ -181,11 +184,31 @@ export function calculateOverallStudentScore(components: ScoreComponents): Score
   const academicContribution =
     Math.round(effectiveAcademicScore * SCORE_WEIGHTS.academic * 10) / 10
 
-  // 2. Existing Quiz / Assessment Performance
+  // 2. Existing Quiz / Assessment Performance & 3. Assignment Performance
   const normalizedQuizScore = Math.max(0, Math.min(100, Number(components.quizScore) || 0))
-  const quizContribution = Math.round(normalizedQuizScore * SCORE_WEIGHTS.quiz * 10) / 10
+  const hasAssignmentScore =
+    components.assignmentScore !== undefined && components.assignmentScore !== null
+  const normalizedAssignmentScore = hasAssignmentScore
+    ? Math.max(0, Math.min(100, Number(components.assignmentScore)))
+    : 0
 
-  // 3. Extracurricular Categories
+  let quizContribution = 0
+  let assignmentContribution = 0
+
+  if (hasAssignmentScore) {
+    // Both quiz (15%) and assignments (10%) are active
+    quizContribution = Math.round(normalizedQuizScore * SCORE_WEIGHTS.quiz * 10) / 10
+    assignmentContribution =
+      Math.round(normalizedAssignmentScore * SCORE_WEIGHTS.assignment * 10) / 10
+  } else {
+    // If student has no assignments yet, quizzes dynamically absorb the 10% weight (15% + 10% = 25%)
+    // so the student is not penalized for not having assignments yet
+    quizContribution =
+      Math.round(normalizedQuizScore * (SCORE_WEIGHTS.quiz + SCORE_WEIGHTS.assignment) * 10) / 10
+    assignmentContribution = 0
+  }
+
+  // 4. Extracurricular Categories
   const achievements = components.achievements || []
 
   // Group achievements by category
@@ -229,10 +252,11 @@ export function calculateOverallStudentScore(components: ScoreComponents): Score
   const projectContribution =
     Math.round(projectCatScore * SCORE_WEIGHTS.projects * 10) / 10
 
-  // 4. Overall Score Sum
+  // 5. Overall Score Sum
   const rawOverall =
     academicContribution +
     quizContribution +
+    assignmentContribution +
     hackathonContribution +
     codingContribution +
     researchContribution +
@@ -251,7 +275,13 @@ export function calculateOverallStudentScore(components: ScoreComponents): Score
     quiz: {
       score: normalizedQuizScore,
       contribution: quizContribution,
-      maxContribution: SCORE_WEIGHTS.quiz * 100
+      maxContribution: (hasAssignmentScore ? SCORE_WEIGHTS.quiz : SCORE_WEIGHTS.quiz + SCORE_WEIGHTS.assignment) * 100
+    },
+    assignment: {
+      score: normalizedAssignmentScore,
+      contribution: assignmentContribution,
+      maxContribution: SCORE_WEIGHTS.assignment * 100,
+      isMissing: !hasAssignmentScore
     },
     hackathons: {
       score: hackathonCatScore,

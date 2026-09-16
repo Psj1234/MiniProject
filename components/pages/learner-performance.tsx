@@ -262,6 +262,22 @@ export default function LearnerPerformance() {
         console.warn('student_achievements query notice:', e)
       }
 
+      // 5b. Fetch assignment submissions from assignment_submissions
+      let assignmentSubmissionsData: any[] = []
+      try {
+        if (allStudentIds.length > 0) {
+          const { data: subRes } = await supabase
+            .from('assignment_submissions')
+            .select('student_uid, percentage, grading_status, is_draft')
+            .in('student_uid', allStudentIds)
+            .eq('is_draft', false)
+            .eq('grading_status', 'graded')
+          assignmentSubmissionsData = subRes || []
+        }
+      } catch (e) {
+        console.warn('assignment_submissions query notice in learner-performance:', e)
+      }
+
       // 6. Extract available assessment periods (e.g. week1, week2, week3, etc.)
       const periodsSet = new Set<string>()
       marksData?.forEach((m) => {
@@ -293,6 +309,18 @@ export default function LearnerPerformance() {
               )
             : 0
 
+        // Calculate student's assignment average
+        const studentAssigns = assignmentSubmissionsData.filter(
+          (s: any) => s.student_uid === studentId
+        )
+        const avgAssignmentScore =
+          studentAssigns.length > 0
+            ? Math.round(
+                studentAssigns.reduce((acc: number, s: any) => acc + Number(s.percentage || 0), 0) /
+                  studentAssigns.length
+              )
+            : null
+
         // Parse student achievements
         const studentAchievements: RawAchievement[] = (achievementsData || [])
           .filter((a: any) => a.student_uid === studentId)
@@ -314,10 +342,11 @@ export default function LearnerPerformance() {
             ? Number(profileObj.cgpa)
             : null
 
-        // Unified score calculation (Academic 30%, Quiz 25%, Hackathons 15%, Coding 10%, Research 10%, Internships 5%, Projects 5%)
+        // Unified score calculation (Academic 30%, Quiz 15%, Assignments 10%, Achievements 45%)
         const breakdown = calculateOverallStudentScore({
           cgpa: cgpaVal,
           quizScore: avgQuizScore,
+          assignmentScore: avgAssignmentScore,
           achievements: studentAchievements
         })
 
