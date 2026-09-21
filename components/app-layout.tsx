@@ -140,7 +140,9 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
         <main className="flex-1">
           {userRole === 'student' ? (
             <>
-              {studentPage === 'dashboard' && <StudentDashboard />}
+              {studentPage === 'dashboard' && (
+                <StudentDashboard onNavigateToRecommendations={() => handleStudentNavigation('recommendations')} />
+              )}
               {studentPage === 'overall-performance' && <StudentOverallPerformance />}
               {studentPage === 'assignments' && <StudentAssignments />}
               {studentPage === 'ai-card' && <StudentAICard />}

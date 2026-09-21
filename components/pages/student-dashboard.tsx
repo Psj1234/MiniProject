@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
+import { Sparkles, ArrowRight } from 'lucide-react'
 
 interface SubjectData {
   id: string
@@ -15,7 +16,11 @@ interface SubjectData {
   performanceTrend: { week: string; score: number }[]
 }
 
-export default function StudentDashboard() {
+interface StudentDashboardProps {
+  onNavigateToRecommendations?: () => void
+}
+
+export default function StudentDashboard({ onNavigateToRecommendations }: StudentDashboardProps = {}) {
   const [loading, setLoading] = useState(true)
   const [subjectsData, setSubjectsData] = useState<SubjectData[]>([])
   const [stats, setStats] = useState({
@@ -291,6 +296,37 @@ export default function StudentDashboard() {
             <p className="text-xs text-slate-400 mt-1">Pending subjective tasks</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Personalized Recommendation Plan Quick Access Banner */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-500/30 p-5 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0 mt-0.5">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white">Personalized Recommendation Plan</h3>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30">
+                  Groq AI
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                Custom roadmap adapted to your learning pace, weak areas, and verified achievements. Includes curated hackathons, practice, project ideas, and revision.
+              </p>
+            </div>
+          </div>
+          {onNavigateToRecommendations && (
+            <button
+              onClick={onNavigateToRecommendations}
+              className="shrink-0 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/30 cursor-pointer"
+            >
+              <span>View Recommendations</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Per-Subject Performance */}
