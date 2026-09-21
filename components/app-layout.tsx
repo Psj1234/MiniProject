@@ -23,6 +23,7 @@ import ProfessorAssignments from './pages/professor-assignments'
 import ProfessorDoubts from './pages/professor-doubts'
 import ProfessorResources from './pages/professor-resources'
 import LearnerPerformance from './pages/learner-performance'
+import ProfessorMarksUpload from './pages/professor-marks-upload'
 
 interface AppLayoutProps {
   userRole: 'student' | 'professor' | null
@@ -31,7 +32,7 @@ interface AppLayoutProps {
 }
 
 type StudentPage = 'dashboard' | 'overall-performance' | 'assignments' | 'courses' | 'performance' | 'recommendations' | 'quizzes' | 'take-quiz' | 'resources' | 'ai-card' | 'doubts'
-type ProfessorPage = 'dashboard' | 'rankings' | 'assignments' | 'classes' | 'class-detail' | 'quizzes' | 'create-quiz' | 'resources' | 'doubts'
+type ProfessorPage = 'dashboard' | 'rankings' | 'marks-upload' | 'assignments' | 'classes' | 'class-detail' | 'quizzes' | 'create-quiz' | 'resources' | 'doubts'
 
 export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -66,6 +67,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
   const professorMenuItems = [
     { label: 'Analytics', key: 'dashboard', icon: '📊' },
     { label: 'Learner Rankings', key: 'rankings', icon: '🏆' },
+    { label: 'Marks Upload', key: 'marks-upload', icon: '📈' },
     { label: 'Assignments', key: 'assignments', icon: '📝' },
     { label: 'Student Doubts', key: 'doubts', icon: '❓' },
     { label: 'Classes', key: 'classes', icon: '👥' },
@@ -169,10 +171,19 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
                   <LearnerPerformance />
                 </div>
               )}
+              {professorPage === 'marks-upload' && (
+                <ProfessorMarksUpload
+                  initialCourseId={selectedClassId}
+                  onBackToClasses={() => handleProfessorNavigation('classes')}
+                />
+              )}
               {professorPage === 'assignments' && <ProfessorAssignments />}
               {professorPage === 'doubts' && <ProfessorDoubts />}
               {professorPage === 'classes' && (
-                <ProfessorClasses onSelectClass={(classId) => handleProfessorNavigation('class-detail', classId)} />
+                <ProfessorClasses
+                  onSelectClass={(classId) => handleProfessorNavigation('class-detail', classId)}
+                  onUploadMarks={(classId) => handleProfessorNavigation('marks-upload', classId)}
+                />
               )}
               {professorPage === 'class-detail' && selectedClassId && (
                 <ProfessorClassDetail classId={selectedClassId} onBack={() => handleProfessorNavigation('classes')} />

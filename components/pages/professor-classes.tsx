@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronRight, Upload, Plus, Trash2 } from 'lucide-react' // Added Plus & Trash2
+import { ChevronRight, Upload, Plus, Trash2, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState, useEffect } from 'react'
@@ -14,11 +14,12 @@ interface ProfessorCourseStats {
 }
 interface ProfessorClassesProps {
   onSelectClass: (classId: string) => void
+  onUploadMarks?: (classId: string) => void
 }
 
 const supabase = createClient()
 
-export default function ProfessorClasses({ onSelectClass }: ProfessorClassesProps) {
+export default function ProfessorClasses({ onSelectClass, onUploadMarks }: ProfessorClassesProps) {
   const [classes, setClasses] = useState<ProfessorCourseStats[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -250,6 +251,16 @@ const { error: insertError } = await supabase.from('enrollments').upsert(
                 <Trash2 size={16} className="mr-2" />
                 Delete Course
               </Button>
+              {onUploadMarks && (
+                <Button
+                  onClick={() => onUploadMarks(course.course_id)}
+                  variant="outline"
+                  className="w-full border-blue-600/50 text-blue-300 hover:bg-blue-600/20 col-span-2 cursor-pointer"
+                >
+                  <FileSpreadsheet size={16} className="mr-2 text-blue-400" />
+                  Upload Course Marks (MSE / ISE / ESE)
+                </Button>
+              )}
             </div>
           </div>
         ))}

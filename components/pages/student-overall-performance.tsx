@@ -23,6 +23,7 @@ import {
   ExternalLink,
   HelpCircle,
   FileText,
+  BarChart3,
   X
 } from 'lucide-react'
 import {
@@ -48,7 +49,19 @@ export default function StudentOverallPerformance() {
     learner_tag: 'fast' | 'slow' | null
   } | null>(null)
 
+interface CourseExamMark {
+  id: number
+  course_id: string
+  percentage: number
+  exam_type: string
+  grade: string | null
+  created_at: string
+  course_name: string
+  course_code: string | null
+}
+
   // Academic and achievements states
+  const [courseExamMarks, setCourseExamMarks] = useState<CourseExamMark[]>([])
   const [quizScore, setQuizScore] = useState<number>(0)
   const [assignmentScore, setAssignmentScore] = useState<number | null>(null)
   const [achievements, setAchievements] = useState<RawAchievement[]>([])
@@ -151,34 +164,81 @@ export default function StudentOverallPerformance() {
         setShowCgpaModal(true)
       }
 
-      // 3. Fetch Quiz Score from marks or quiz_results
+      // 3. Fetch Course Exam Marks (ISE / MSE / ESE) and Quizzes
       if (profileData?.student_id) {
-        const { data: marksData } = await supabase
-          .from('marks')
-          .select('percentage')
-          .eq('student_uid', profileData.student_id)
-          .not('percentage', 'is', null)
+        let fetchedMarks: CourseExamMark[] = []
+        try {
+          const { data: marksData, error: mError } = await supabase
+            .from('marks')
+            .select(`
+              id,
+              percentage,
+              exam_type,
+              grade,
+              created_at,
+              course_id,
+              courses (
+                id,
+                name,
+                code
+              )
+            `)
+            .eq('student_uid', profileData.student_id)
+            .not('percentage', 'is', null)
+            .order('created_at', { ascending: false })
 
-        if (marksData && marksData.length > 0) {
-          const avg =
-            marksData.reduce((acc, m) => acc + Number(m.percentage || 0), 0) / marksData.length
-          setQuizScore(Math.round(avg * 10) / 10)
-        } else {
-          // Fallback check on quiz_results
+          if (!mError && marksData) {
+            fetchedMarks = marksData.map((m: any) => ({
+              id: m.id,
+              course_id: m.course_id,
+              percentage: Number(m.percentage || 0),
+              exam_type: m.exam_type || 'assessment',
+              grade: m.grade || null,
+              created_at: m.created_at,
+              course_name: m.courses?.name || 'Course Assessment',
+              course_code: m.courses?.code || null
+            }))
+            setCourseExamMarks(fetchedMarks)
+          }
+        } catch (e) {
+          console.warn('Could not fetch marks with courses join:', e)
+        }
+
+        // Fetch quiz_results for additional quiz scores
+        let quizAvg: number | null = null
+        try {
           const { data: qrData } = await supabase
             .from('quiz_results')
             .select('score, max_score')
             .eq('student_uid', profileData.student_id)
 
           if (qrData && qrData.length > 0) {
-            const percentages = qrData
+            const valid = qrData
               .filter((q) => q.max_score > 0)
               .map((q) => (q.score / q.max_score) * 100)
-            if (percentages.length > 0) {
-              const avg = percentages.reduce((a, b) => a + b, 0) / percentages.length
-              setQuizScore(Math.round(avg * 10) / 10)
+            if (valid.length > 0) {
+              quizAvg = valid.reduce((a, b) => a + b, 0) / valid.length
             }
           }
+        } catch (e) {
+          console.warn('Could not fetch quiz_results:', e)
+        }
+
+        // Calculate combined assessment score:
+        // Formal exam marks (ISE/MSE/ESE, 70%) + Quizzes (30%)
+        const hasExamMarks = fetchedMarks.length > 0
+
+        if (hasExamMarks && quizAvg !== null) {
+          const examAvg = fetchedMarks.reduce((a, b) => a + b.percentage, 0) / fetchedMarks.length
+          const composite = (examAvg * 0.7) + (quizAvg * 0.3)
+          setQuizScore(Math.round(composite * 10) / 10)
+        } else if (hasExamMarks) {
+          const examAvg = fetchedMarks.reduce((a, b) => a + b.percentage, 0) / fetchedMarks.length
+          setQuizScore(Math.round(examAvg * 10) / 10)
+        } else if (quizAvg !== null) {
+          setQuizScore(Math.round(quizAvg * 10) / 10)
+        } else {
+          setQuizScore(0)
         }
 
         // 4. Fetch Achievements from student_achievements table
@@ -862,6 +922,137 @@ export default function StudentOverallPerformance() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* --- Section 2.5: Course Examination Marks (ISE / MSE / ESE) --- */}
+      <Card className="bg-slate-800/90 border-slate-700 shadow-xl">
+        <CardHeader className="border-b border-slate-700/60 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-indigo-400" />
+                Course Examination Marks (ISE / MSE / ESE)
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-400">
+                Official marks uploaded by course professors, contributing directly to your assessment performance
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+                {courseExamMarks.length} Exam{courseExamMarks.length === 1 ? '' : 's'} Evaluated
+              </span>
+              {courseExamMarks.length > 0 && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                  Avg:{' '}
+                  {(
+                    courseExamMarks.reduce((acc, m) => acc + m.percentage, 0) /
+                    courseExamMarks.length
+                  ).toFixed(1)}
+                  %
+                </span>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {courseExamMarks.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 space-y-2">
+              <BookOpen className="w-8 h-8 mx-auto text-slate-500 opacity-60" />
+              <p className="text-sm font-medium text-slate-300">No course exam marks uploaded yet</p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                When your professors upload marks for ISE (In-Semester), MSE (Mid-Semester), or ESE (End-Semester) exams, they will automatically appear here and update your overall performance score.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-700/60 bg-slate-900/40 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                    <th className="py-3 px-4">Course</th>
+                    <th className="py-3 px-4 text-center">Exam Round</th>
+                    <th className="py-3 px-4 text-center">Percentage Score</th>
+                    <th className="py-3 px-4 text-center">Grade</th>
+                    <th className="py-3 px-4 text-right">Recorded Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/40">
+                  {courseExamMarks.map((mark) => {
+                    const examUpper = mark.exam_type?.toUpperCase() || 'EXAM'
+                    let roundBadge = 'bg-slate-700/60 text-slate-300 border-slate-600/50'
+                    if (examUpper.includes('ISE')) {
+                      roundBadge = 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    } else if (examUpper.includes('MSE')) {
+                      roundBadge = 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                    } else if (examUpper.includes('ESE')) {
+                      roundBadge = 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+                    }
+
+                    let gradeBadge = 'bg-slate-700/60 text-slate-300 border-slate-600/50'
+                    if (mark.grade?.startsWith('A')) {
+                      gradeBadge = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                    } else if (mark.grade?.startsWith('B')) {
+                      gradeBadge = 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                    } else if (mark.grade?.startsWith('C') || mark.grade?.startsWith('D')) {
+                      gradeBadge = 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    } else if (mark.grade === 'F') {
+                      gradeBadge = 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                    }
+
+                    return (
+                      <tr key={mark.id} className="hover:bg-slate-700/20 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-white">{mark.course_name}</div>
+                          {mark.course_code && (
+                            <div className="text-xs text-slate-400 font-mono mt-0.5">
+                              {mark.course_code}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${roundBadge}`}
+                          >
+                            {examUpper}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="max-w-[140px] mx-auto space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-white">{mark.percentage}%</span>
+                            </div>
+                            <div className="w-full bg-slate-700/60 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="h-full bg-indigo-400 rounded-full transition-all"
+                                style={{ width: `${Math.min(100, Math.max(0, mark.percentage))}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {mark.grade ? (
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-bold border ${gradeBadge}`}
+                            >
+                              {mark.grade}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-500">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right text-xs text-slate-400">
+                          {mark.created_at
+                            ? new Date(mark.created_at).toLocaleDateString()
+                            : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

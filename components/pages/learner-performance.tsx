@@ -105,8 +105,11 @@ export default function LearnerPerformance() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Raw Database Data
-  const [allStudents, setAllStudents] = useState<RankedStudent[]>([])
+  // Raw Database Data for Dynamic Recalculation
+  const [rawEnrollments, setRawEnrollments] = useState<any[]>([])
+  const [rawMarks, setRawMarks] = useState<any[]>([])
+  const [rawAssignments, setRawAssignments] = useState<any[]>([])
+  const [rawAchievements, setRawAchievements] = useState<any[]>([])
 
   // Modal State for Clicked Student
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<StudentDetailData | null>(null)
@@ -156,7 +159,10 @@ export default function LearnerPerformance() {
 
       if (!teacherCourses || teacherCourses.length === 0) {
         setCourses([])
-        setAllStudents([])
+        setRawEnrollments([])
+        setRawMarks([])
+        setRawAssignments([])
+        setRawAchievements([])
         setIsLoading(false)
         return
       }
@@ -278,105 +284,21 @@ export default function LearnerPerformance() {
         console.warn('assignment_submissions query notice in learner-performance:', e)
       }
 
-      // 6. Extract available assessment periods (e.g. week1, week2, week3, etc.)
+      // 6. Extract available assessment periods (e.g. ISE, MSE, ESE)
       const periodsSet = new Set<string>()
       marksData?.forEach((m) => {
         if (m.exam_type) {
-          periodsSet.add(m.exam_type)
+          periodsSet.add(m.exam_type.toLowerCase())
         }
       })
       const sortedPeriods = Array.from(periodsSet).sort()
       setAvailablePeriods(sortedPeriods)
 
-      // 7. Process each enrollment into a student ranking record using the unified scoring engine
-      const processedStudents: RankedStudent[] = (enrollments || []).map((enrollment: any) => {
-        const studentId = enrollment.student_id
-        const courseId = enrollment.course_id
-        const courseObj = enrollment.courses
-        const profileObj = enrollment.profiles
-
-        // Filter student's marks for this specific course
-        const studentCourseMarks = (marksData || []).filter(
-          (m) => m.student_uid === studentId && m.course_id === courseId
-        )
-
-        // Calculate average percentage score across assessments
-        const avgQuizScore =
-          studentCourseMarks.length > 0
-            ? Math.round(
-                studentCourseMarks.reduce((acc, m) => acc + Number(m.percentage || 0), 0) /
-                  studentCourseMarks.length
-              )
-            : 0
-
-        // Calculate student's assignment average
-        const studentAssigns = assignmentSubmissionsData.filter(
-          (s: any) => s.student_uid === studentId
-        )
-        const avgAssignmentScore =
-          studentAssigns.length > 0
-            ? Math.round(
-                studentAssigns.reduce((acc: number, s: any) => acc + Number(s.percentage || 0), 0) /
-                  studentAssigns.length
-              )
-            : null
-
-        // Parse student achievements
-        const studentAchievements: RawAchievement[] = (achievementsData || [])
-          .filter((a: any) => a.student_uid === studentId)
-          .map((a: any) => ({
-            id: a.id,
-            category: a.category,
-            title: a.title,
-            organizer: a.organizer,
-            date: a.date,
-            result: a.result,
-            score: Number(a.score || 0),
-            description: a.description,
-            proof_url: a.proof_url,
-            verification_status: a.verification_status
-          }))
-
-        const cgpaVal =
-          profileObj?.cgpa !== null && profileObj?.cgpa !== undefined
-            ? Number(profileObj.cgpa)
-            : null
-
-        // Unified score calculation (Academic 30%, Quiz 15%, Assignments 10%, Achievements 45%)
-        const breakdown = calculateOverallStudentScore({
-          cgpa: cgpaVal,
-          quizScore: avgQuizScore,
-          assignmentScore: avgAssignmentScore,
-          achievements: studentAchievements
-        })
-
-        const tag = (enrollment.learner_tag as 'fast' | 'slow') || 'slow'
-
-        let status: 'On Track' | 'Progressing' | 'At Risk' = 'Progressing'
-        if (tag === 'fast') {
-          status = breakdown.overallScore >= 75 ? 'On Track' : 'Progressing'
-        } else {
-          status = breakdown.overallScore < 50 ? 'At Risk' : 'Progressing'
-        }
-
-        return {
-          student_id: studentId,
-          name: profileObj?.full_name || `Student #${studentId}`,
-          course_id: courseId,
-          course_name: courseObj?.name || 'Assigned Course',
-          course_code: courseObj?.code || null,
-          learner_tag: tag,
-          cgpa: cgpaVal,
-          quiz_score: avgQuizScore,
-          overall_score: breakdown.overallScore,
-          score_breakdown: breakdown,
-          achievements_count: studentAchievements.length,
-          assessments_count: studentCourseMarks.length,
-          status
-        }
-      })
-
-      setAllStudents(processedStudents)
+      // Store raw database datasets for dynamic re-evaluation
+      setRawEnrollments(enrollments || [])
+      setRawMarks(marksData || [])
+      setRawAssignments(assignmentSubmissionsData || [])
+      setRawAchievements(achievementsData || [])
     } catch (err: any) {
       console.error('Error fetching learner ranking data:', err)
       setError(err.message || 'An error occurred while loading learner rankings.')
@@ -388,6 +310,100 @@ export default function LearnerPerformance() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Dynamic ranking list calculated with selected assessment period (ISE / MSE / ESE)
+  const allStudents: RankedStudent[] = useMemo(() => {
+    return (rawEnrollments || []).map((enrollment: any) => {
+      const studentId = enrollment.student_id
+      const courseId = enrollment.course_id
+      const courseObj = enrollment.courses
+      const profileObj = enrollment.profiles
+
+      // Filter student's marks for this course and selected assessment round
+      const studentCourseMarks = (rawMarks || []).filter((m) => {
+        if (m.student_uid !== studentId || m.course_id !== courseId) return false
+        if (selectedPeriod !== 'all') {
+          return m.exam_type?.toLowerCase() === selectedPeriod.toLowerCase()
+        }
+        return true
+      })
+
+      // Calculate average percentage score across selected assessments
+      const avgQuizScore =
+        studentCourseMarks.length > 0
+          ? Math.round(
+              studentCourseMarks.reduce((acc, m) => acc + Number(m.percentage || 0), 0) /
+                studentCourseMarks.length
+            )
+          : 0
+
+      // Calculate student's assignment average
+      const studentAssigns = (rawAssignments || []).filter(
+        (s: any) => s.student_uid === studentId
+      )
+      const avgAssignmentScore =
+        studentAssigns.length > 0
+          ? Math.round(
+              studentAssigns.reduce((acc: number, s: any) => acc + Number(s.percentage || 0), 0) /
+                studentAssigns.length
+            )
+          : null
+
+      // Parse student achievements
+      const studentAchievements: RawAchievement[] = (rawAchievements || [])
+        .filter((a: any) => a.student_uid === studentId)
+        .map((a: any) => ({
+          id: a.id,
+          category: a.category,
+          title: a.title,
+          organizer: a.organizer,
+          date: a.date,
+          result: a.result,
+          score: Number(a.score || 0),
+          description: a.description,
+          proof_url: a.proof_url,
+          verification_status: a.verification_status
+        }))
+
+      const cgpaVal =
+        profileObj?.cgpa !== null && profileObj?.cgpa !== undefined
+          ? Number(profileObj.cgpa)
+          : null
+
+      // Unified score calculation (Academic 30%, Assessment/Marks 15%, Assignments 10%, Achievements 45%)
+      const breakdown = calculateOverallStudentScore({
+        cgpa: cgpaVal,
+        quizScore: avgQuizScore,
+        assignmentScore: avgAssignmentScore,
+        achievements: studentAchievements
+      })
+
+      const tag = (enrollment.learner_tag as 'fast' | 'slow') || 'slow'
+
+      let status: 'On Track' | 'Progressing' | 'At Risk' = 'Progressing'
+      if (tag === 'fast') {
+        status = breakdown.overallScore >= 75 ? 'On Track' : 'Progressing'
+      } else {
+        status = breakdown.overallScore < 50 ? 'At Risk' : 'Progressing'
+      }
+
+      return {
+        student_id: studentId,
+        name: profileObj?.full_name || `Student #${studentId}`,
+        course_id: courseId,
+        course_name: courseObj?.name || 'Assigned Course',
+        course_code: courseObj?.code || null,
+        learner_tag: tag,
+        cgpa: cgpaVal,
+        quiz_score: avgQuizScore,
+        overall_score: breakdown.overallScore,
+        score_breakdown: breakdown,
+        achievements_count: studentAchievements.length,
+        assessments_count: studentCourseMarks.length,
+        status
+      }
+    })
+  }, [rawEnrollments, rawMarks, rawAssignments, rawAchievements, selectedPeriod])
 
   // Filter students based on Course, Assessment Period, and Search Query
   const filteredStudents = useMemo(() => {

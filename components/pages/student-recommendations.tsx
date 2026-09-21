@@ -29,7 +29,7 @@ import {
   FileText,
   Globe
 } from 'lucide-react'
-import type { PersonalizedPlan, RecommendationItem, ResourceItem } from '@/app/api/recommendations/route'
+import { getLeetCodeUrl, getGeeksForGeeksUrl, type PersonalizedPlan, type RecommendationItem, type ResourceItem } from '@/lib/recommendations'
 
 const SECTION_OPTIONS = [
   'All Sections',
@@ -64,10 +64,37 @@ function ensureResourcesOnPlan(rawPlan: PersonalizedPlan | null): PersonalizedPl
         : null
 
       if (existingResources) {
+        // Automatically repair any legacy or broken LeetCode / GeeksforGeeks URLs
+        const cleanedResources = existingResources.map((res) => {
+          if (res.url && res.url.includes('leetcode.com/problemset')) {
+            return {
+              ...res,
+              url: getLeetCodeUrl(res.title || rec.activity || '')
+            }
+          }
+          if (res.url && (res.platform === 'GeeksforGeeks' || res.url.includes('geeksforgeeks.org'))) {
+            return {
+              ...res,
+              url: getGeeksForGeeksUrl(res.url, res.title || rec.activity || '')
+            }
+          }
+          return res
+        })
+
+        let primaryUrl = rec.resourceUrl
+        if (primaryUrl && primaryUrl.includes('leetcode.com/problemset')) {
+          primaryUrl = cleanedResources[0]?.url || getLeetCodeUrl(rec.activity || '')
+        } else if (primaryUrl && primaryUrl.includes('geeksforgeeks.org')) {
+          primaryUrl = getGeeksForGeeksUrl(primaryUrl, rec.activity || '')
+        } else if (!primaryUrl && cleanedResources.length > 0) {
+          primaryUrl = cleanedResources[0]?.url
+        }
+
         return {
           ...rec,
           id: rec.id || `rec-${idx + 1}`,
-          resourceUrl: rec.resourceUrl || existingResources[0].url
+          resourceUrl: primaryUrl,
+          resources: cleanedResources
         }
       }
 
@@ -85,10 +112,10 @@ function ensureResourcesOnPlan(rawPlan: PersonalizedPlan | null): PersonalizedPl
           title: `${rec.activity} - Practice & Reference Guide`,
           platform: rec.category === 'Coding' ? 'LeetCode' : rec.category === 'Hackathon' ? 'Devpost' : 'GeeksforGeeks',
           url: rec.category === 'Coding'
-            ? `https://leetcode.com/problemset/all/?search=${topicQuery}`
+            ? getLeetCodeUrl(rec.activity || '')
             : rec.category === 'Hackathon'
             ? `https://devpost.com/hackathons?search=${topicQuery}`
-            : `https://www.google.com/search?q=${encodeURIComponent(rec.activity + ' tutorial geeksforgeeks documentation')}`,
+            : getGeeksForGeeksUrl('', `${rec.activity} tutorial documentation`),
           resource_type: rec.category === 'Coding' ? 'practice' : 'documentation',
           description: `Comprehensive practice problems, case studies, and reference notes.`
         }
