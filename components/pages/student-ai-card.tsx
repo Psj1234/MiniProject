@@ -334,291 +334,152 @@ export default function StudentAICard() {
     setError(null)
 
     try {
-      const insights: AIInsight[] = []
+      console.log('🤖 Invoking Groq AI Card API for', studentName, '...')
+      const res = await fetch('/api/student-ai-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName,
+          learnerTag,
+          subjects,
+          quizzes
+        })
+      })
 
-      // Generate insights for each subject
-      for (const subject of subjects) {
-        try {
-          console.log(`🤖 Generating AI insight for ${subject.subject}...`)
-          
-          // Prepare the detailed data format with more context
-          const requestData = {
-            type: 'subject-insight',
-            data: {
-              subject: subject.subject,
-              avgAccuracy: subject.avgAccuracy,
-              correctAnswers: subject.correctAnswers,
-              totalQuestions: subject.totalQuestions,
-              avgTime: subject.avgTime,
-              learnerTag: learnerTag || 'Not Yet Classified',
-              // Additional detailed data
-              topicCount: subject.topics.length,
-              weakestTopics: subject.weakestTopics,
-              strongestTopics: subject.strongestTopics,
-              topicBreakdown: subject.topics.map(t => ({
-                name: t.topic_name,
-                accuracy: t.accuracy,
-                questions: t.total_questions,
-                avgTime: t.avg_time_taken
-              }))
-            }
-          }
-          
-          console.log('📤 Sending detailed request:', JSON.stringify(requestData, null, 2))
-          
-          const response = await supabase.functions.invoke('generate-ai-insights', {
-            body: requestData
-          })
-
-          console.log(`📥 Response status for ${subject.subject}:`, response.status)
-          console.log(`📥 Response error for ${subject.subject}:`, response.error)
-          console.log(`📥 Response data for ${subject.subject}:`, response.data)
-
-          // Check for error in response
-          if (response.error) {
-            console.error(`❌ Edge function returned error for ${subject.subject}:`, response.error)
-            throw new Error(response.error.message || 'Edge function error')
-          }
-
-          // Check if data exists
-          if (!response.data) {
-            console.error(`❌ No data in response for ${subject.subject}`)
-            throw new Error('No data received from edge function')
-          }
-
-          // Check if there's an error field in the data itself
-          if (response.data.error) {
-            console.error(`❌ Error in response data for ${subject.subject}:`, response.data.error)
-            throw new Error(response.data.error)
-          }
-
-          // Get the insight field
-          if (!response.data.insight) {
-            console.error(`❌ No insight field in response for ${subject.subject}`)
-            throw new Error('No insight field in response')
-          }
-
-          console.log(`✅ Raw insight string for ${subject.subject}:`, response.data.insight)
-
-          // Parse the JSON insight
-          let parsed
-          try {
-            // The edge function returns JSON as a string, so we need to parse it
-            parsed = typeof response.data.insight === 'string' 
-              ? JSON.parse(response.data.insight)
-              : response.data.insight
-            
-            console.log(`✅ Parsed insight for ${subject.subject}:`, parsed)
-          } catch (parseError: any) {
-            console.error(`❌ JSON parse error for ${subject.subject}:`, parseError)
-            console.error(`❌ Failed to parse string:`, response.data.insight)
-            throw new Error(`Failed to parse insight JSON: ${parseError.message}`)
-          }
-
-          // Validate the parsed object has required fields
-          if (!parsed.performance || !parsed.strengths || !parsed.improvements || !parsed.recommendation) {
-            console.error(`❌ Parsed insight missing required fields for ${subject.subject}:`, parsed)
-            throw new Error('Parsed insight missing required fields')
-          }
-
-          // Add the validated insight
-          insights.push({
-            subject: subject.subject,
-            performance: parsed.performance,
-            strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-            improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
-            recommendation: parsed.recommendation
-          })
-          
-          console.log(`✅ Successfully added insight for ${subject.subject}`)
-        } catch (err: any) {
-          console.error(`💥 Error generating insight for ${subject.subject}:`, err)
-          console.error(`💥 Error message:`, err.message)
-          
-          // Add fallback insight based on performance
-          const { avgAccuracy, correctAnswers, totalQuestions, weakestTopics, strongestTopics } = subject
-          
-          let performance = 'Good'
-          let strengths: string[] = []
-          let improvements: string[] = []
-          let recommendation = ''
-
-          if (avgAccuracy >= 85) {
-            performance = 'Excellent'
-            strengths = [
-              `Exceptional mastery of ${subject.subject} with ${avgAccuracy}% accuracy`,
-              strongestTopics.length > 0 ? `Outstanding performance in ${strongestTopics[0].name}` : `Consistently high scores across all topics`,
-              `Strong problem-solving skills demonstrated across ${totalQuestions} questions`
-            ]
-            improvements = [
-              `Challenge yourself with advanced problems and real-world applications`,
-              `Consider peer tutoring to reinforce understanding`,
-              weakestTopics.length > 0 ? `Fine-tune understanding in ${weakestTopics[0].name} for perfection` : `Explore advanced concepts beyond curriculum`
-            ]
-            recommendation = `Your excellence in ${subject.subject} is remarkable. Focus on mentoring others and tackling more complex problem sets to deepen mastery.`
-          } else if (avgAccuracy >= 70) {
-            performance = 'Good'
-            strengths = [
-              `Solid understanding of core ${subject.subject} concepts`,
-              strongestTopics.length > 0 ? `Excellent grasp of ${strongestTopics[0].name} (${strongestTopics[0].accuracy}% accuracy)` : `Good progress with ${correctAnswers} correct answers`,
-              `Consistent effort shown across ${totalQuestions} practice questions`
-            ]
-            improvements = [
-              weakestTopics.length > 0 ? `Focus intensive review on ${weakestTopics[0].name} (${weakestTopics[0].accuracy}% accuracy)` : `Work on maintaining consistency across all topics`,
-              `Practice more problems in areas below 75% accuracy`,
-              `Review fundamental concepts to strengthen weak areas`
-            ]
-            recommendation = `You're on a strong trajectory in ${subject.subject}. Dedicate 30 minutes daily to practice problems in weaker topics, and you'll see significant improvement.`
-          } else if (avgAccuracy >= 50) {
-            performance = 'Fair'
-            strengths = [
-              `Making steady progress with ${correctAnswers} out of ${totalQuestions} questions correct`,
-              strongestTopics.length > 0 ? `Show promise in ${strongestTopics[0].name}` : `Demonstrating consistent effort`,
-              `Building foundational understanding of ${subject.subject}`
-            ]
-            improvements = [
-              weakestTopics.length > 0 ? `Urgently address gaps in ${weakestTopics[0].name} (${weakestTopics[0].accuracy}% accuracy)` : `Focus on strengthening fundamental concepts`,
-              `Seek help from teachers or tutors for challenging topics`,
-              `Increase practice time and focus on conceptual clarity`
-            ]
-            recommendation = `In ${subject.subject}, prioritize understanding core concepts before attempting complex problems. Create a study schedule focusing on your weakest areas first.`
-          } else {
-            performance = 'Needs Work'
-            strengths = [
-              `Showing commitment by attempting ${totalQuestions} questions`,
-              strongestTopics.length > 0 ? `Potential evident in ${strongestTopics[0].name}` : `Foundation ready for improvement`,
-              `Opportunity for significant growth identified`
-            ]
-            improvements = [
-              `Critically need focused revision of fundamental ${subject.subject} concepts`,
-              weakestTopics.length > 0 ? `Start with basics in ${weakestTopics[0].name} before moving forward` : `Begin with simplified explanations and basic problems`,
-              `Schedule regular tutoring sessions for personalized guidance`
-            ]
-            recommendation = `${subject.subject} requires immediate attention. Start with basic concepts using video tutorials and simple examples. Work with a tutor to build confidence step-by-step.`
-          }
-
-          insights.push({
-            subject: subject.subject,
-            performance,
-            strengths: strengths.slice(0, 3),
-            improvements: improvements.slice(0, 3),
-            recommendation
-          })
-          
-          console.log(`✅ Added fallback insight for ${subject.subject}`)
-        }
+      if (!res.ok) {
+        const errText = await res.text()
+        throw new Error(`API error (${res.status}): ${errText}`)
       }
 
-      console.log('✅ All insights generated:', insights.length)
+      const data = await res.json()
+      console.log('✅ Received Groq AI insights:', data)
+
+      if (data.subjectInsights && Array.isArray(data.subjectInsights)) {
+        setAIInsights(data.subjectInsights)
+      }
+
+      if (data.detailedSummary) {
+        setDetailedSummary(data.detailedSummary)
+      }
+
+      if (data.motivationalQuote) {
+        setMotivationalQuote(data.motivationalQuote)
+      }
+
+      if (data.overallStrengths && Array.isArray(data.overallStrengths)) {
+        setOverallStrengths(data.overallStrengths.slice(0, 3))
+      }
+
+      if (data.overallImprovements && Array.isArray(data.overallImprovements)) {
+        setOverallImprovements(data.overallImprovements.slice(0, 3))
+      }
+    } catch (err: any) {
+      console.warn('💥 Groq API call note:', err)
+      console.log('⚠️ Activating local fallback generator for student data')
+
+      // Fallback calculation directly based on actual student scores
+      const insights: AIInsight[] = subjects.map((subject) => {
+        const { avgAccuracy, correctAnswers, totalQuestions, weakestTopics, strongestTopics } = subject
+        let performance = 'Good'
+        let strengths: string[] = []
+        let improvements: string[] = []
+        let recommendation = ''
+
+        if (avgAccuracy >= 85) {
+          performance = 'Excellent'
+          strengths = [
+            `Exceptional mastery of ${subject.subject} with ${avgAccuracy}% accuracy`,
+            strongestTopics.length > 0 ? `Outstanding performance in ${strongestTopics[0].name}` : `Consistently high scores across all topics`,
+            `Strong problem-solving velocity across ${totalQuestions} questions`
+          ]
+          improvements = [
+            `Challenge yourself with advanced problem sets and real-world applications`,
+            `Consider peer tutoring to reinforce comprehensive mastery`,
+            weakestTopics.length > 0 ? `Fine-tune understanding in ${weakestTopics[0].name}` : `Explore advanced concepts beyond curriculum`
+          ]
+          recommendation = `Your excellence in ${subject.subject} is remarkable. Tackle more complex problem sets to deepen mastery.`
+        } else if (avgAccuracy >= 70) {
+          performance = 'Good'
+          strengths = [
+            `Solid understanding of core ${subject.subject} concepts`,
+            strongestTopics.length > 0 ? `Excellent grasp of ${strongestTopics[0].name} (${strongestTopics[0].accuracy}% accuracy)` : `Good progress with ${correctAnswers} correct answers`,
+            `Consistent effort shown across ${totalQuestions} practice questions`
+          ]
+          improvements = [
+            weakestTopics.length > 0 ? `Focus intensive review on ${weakestTopics[0].name} (${weakestTopics[0].accuracy}% accuracy)` : `Work on maintaining consistency across all topics`,
+            `Practice more problems in areas below 75% accuracy`,
+            `Review fundamental concepts to solidify weak areas`
+          ]
+          recommendation = `You are on a strong trajectory in ${subject.subject}. Dedicate 30 minutes daily to practice problems in weaker topics.`
+        } else if (avgAccuracy >= 50) {
+          performance = 'Fair'
+          strengths = [
+            `Making steady progress with ${correctAnswers} out of ${totalQuestions} questions correct`,
+            strongestTopics.length > 0 ? `Shows promise in ${strongestTopics[0].name}` : `Demonstrating consistent practice effort`,
+            `Building foundational understanding of ${subject.subject}`
+          ]
+          improvements = [
+            weakestTopics.length > 0 ? `Urgently address gaps in ${weakestTopics[0].name} (${weakestTopics[0].accuracy}% accuracy)` : `Focus on strengthening fundamental concepts`,
+            `Review core principles before attempting complex problem sets`,
+            `Increase practice time and focus on conceptual clarity`
+          ]
+          recommendation = `In ${subject.subject}, prioritize understanding core concepts before attempting complex problems. Schedule regular review sessions.`
+        } else {
+          performance = 'Needs Work'
+          strengths = [
+            `Showing commitment by attempting ${totalQuestions} questions`,
+            strongestTopics.length > 0 ? `Potential evident in ${strongestTopics[0].name}` : `Foundation ready for improvement`,
+            `High growth potential identified`
+          ]
+          improvements = [
+            `Critically need focused revision of fundamental ${subject.subject} concepts`,
+            weakestTopics.length > 0 ? `Start with basics in ${weakestTopics[0].name} before moving forward` : `Begin with simplified explanations and basic problems`,
+            `Schedule regular guidance sessions for personalized improvement`
+          ]
+          recommendation = `${subject.subject} requires immediate attention. Start with basic concepts using step-by-step examples to build confidence.`
+        }
+
+        return {
+          subject: subject.subject,
+          performance,
+          strengths: strengths.slice(0, 3),
+          improvements: improvements.slice(0, 3),
+          recommendation
+        }
+      })
+
       setAIInsights(insights)
 
-      // Generate overall strengths and improvements
-      const allStrengths = insights.flatMap(i => i.strengths)
-      const allImprovements = insights.flatMap(i => i.improvements)
-      
-      // Get unique items
-      const uniqueStrengths = [...new Set(allStrengths)]
-      const uniqueImprovements = [...new Set(allImprovements)]
-      
-      console.log('✅ Overall strengths:', uniqueStrengths)
-      console.log('✅ Overall improvements:', uniqueImprovements)
-      
-      setOverallStrengths(uniqueStrengths.slice(0, 3))
-      setOverallImprovements(uniqueImprovements.slice(0, 3))
+      const allStrengths = insights.flatMap((i) => i.strengths)
+      const allImprovements = insights.flatMap((i) => i.improvements)
+      setOverallStrengths([...new Set(allStrengths)].slice(0, 3))
+      setOverallImprovements([...new Set(allImprovements)].slice(0, 3))
 
-      // Generate detailed summary
-      try {
-        console.log('🤖 Generating detailed summary...')
-        
-        const summaryData = {
-          type: 'detailed-summary',
-          data: {
-            studentName,
-            learnerTag: learnerTag || 'Not Yet Classified',
-            subjectInsights: insights.map(i => ({
-              subject: i.subject,
-              performance: i.performance,
-              avgAccuracy: subjects.find(s => s.subject === i.subject)?.avgAccuracy || 0
-            })),
-            overallAccuracy: subjects.length > 0
-              ? Math.round(subjects.reduce((sum, s) => sum + s.avgAccuracy, 0) / subjects.length)
-              : 0,
-            totalQuestions: subjects.reduce((sum, s) => sum + s.totalQuestions, 0),
-            totalCorrect: subjects.reduce((sum, s) => sum + s.correctAnswers, 0),
-            quizPerformance: quizzes.map(q => ({ title: q.quiz_title, percentage: q.percentage }))
-          }
-        }
-        
-        const summaryResponse = await supabase.functions.invoke('generate-ai-insights', {
-          body: summaryData
-        })
-
-        if (!summaryResponse.error && summaryResponse.data?.summary) {
-          const parsedSummary = typeof summaryResponse.data.summary === 'string' 
-            ? JSON.parse(summaryResponse.data.summary)
-            : summaryResponse.data.summary
-          
-          setDetailedSummary(parsedSummary)
-          console.log('✅ Generated detailed summary')
-        }
-      } catch (err) {
-        console.error('💥 Error generating summary:', err)
-      }
-
-      // Generate motivational quote
       const avgScore = quizzes.length > 0
         ? Math.round(quizzes.reduce((sum, q) => sum + q.percentage, 0) / quizzes.length)
         : subjects.length > 0
         ? Math.round(subjects.reduce((sum, s) => sum + s.avgAccuracy, 0) / subjects.length)
         : 0
 
-      try {
-        console.log('🤖 Generating motivational quote for avgScore:', avgScore)
-        
-        const quoteResponse = await supabase.functions.invoke('generate-ai-insights', {
-          body: {
-            type: 'motivational-quote',
-            data: { avgScore }
-          }
-        })
+      let quote = 'Keep learning, keep growing!'
+      if (avgScore >= 85) quote = 'Excellence is a habit. Keep pushing boundaries!'
+      else if (avgScore >= 70) quote = 'You are on the right track! Consistency brings mastery.'
+      else if (avgScore >= 50) quote = 'Progress over perfection! Keep building step by step.'
+      else if (avgScore > 0) quote = 'Every expert was once a beginner. Consistency is key.'
+      setMotivationalQuote(quote)
 
-        console.log('📥 Quote response status:', quoteResponse.status)
-        console.log('📥 Quote response error:', quoteResponse.error)
-        console.log('📥 Quote response data:', quoteResponse.data)
-
-        if (quoteResponse.error) {
-          console.error('❌ Error generating quote:', quoteResponse.error)
-          throw quoteResponse.error
-        }
-
-        if (quoteResponse.data?.quote) {
-          setMotivationalQuote(quoteResponse.data.quote)
-          console.log('✅ Generated quote:', quoteResponse.data.quote)
-        } else {
-          throw new Error('No quote in response')
-        }
-      } catch (err) {
-        console.error('💥 Error generating quote:', err)
-        console.error('💥 Using fallback quote')
-        
-        // Fallback quotes
-        let quote = 'Keep learning, keep growing!'
-        if (avgScore >= 85) quote = 'Excellence is a habit. Keep it up!'
-        else if (avgScore >= 70) quote = "You're on the right track!"
-        else if (avgScore >= 50) quote = 'Progress over perfection!'
-        else if (avgScore > 0) quote = 'Every expert was once a beginner.'
-        
-        setMotivationalQuote(quote)
-        console.log('✅ Set fallback quote:', quote)
-      }
-
-    } catch (error: any) {
-      console.error('💥 Critical error in generateAIInsights:', error)
-      console.error('💥 Error message:', error.message)
-      setError('Failed to generate AI insights: ' + error.message)
+      setDetailedSummary({
+        overallPerformance: `${studentName} demonstrates an overall average score of ${avgScore}% across ${subjects.length} active subject modules.`,
+        keyInsights: [
+          `Overall accuracy stands at ${avgScore}% across evaluated coursework.`,
+          subjects.length > 0 ? `Primary subject evaluated: ${subjects[0]?.subject}.` : 'Building broad academic foundations.',
+          `Completed ${quizzes.length} recent assessments.`
+        ],
+        criticalAreas: subjects.flatMap((s) => s.weakestTopics.slice(0, 1).map((w) => `${s.subject}: ${w.name}`)).slice(0, 3),
+        actionPlan: 'Allocate 30 minutes daily to high-priority review topics and complete weekly practice modules to consolidate retention.'
+      })
     } finally {
       setGeneratingInsights(false)
-      console.log('✅ Finished generating insights')
     }
   }
 
