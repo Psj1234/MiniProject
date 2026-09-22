@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Pragya: Professor Assignments + AI-Based Subjective Evaluation Migration
+-- VidyaSetu: Professor Assignments + AI-Based Subjective Evaluation Migration
 -- ==============================================================================
 
 -- 1. Create assignments table

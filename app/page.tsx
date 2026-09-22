@@ -184,63 +184,96 @@ export default function Home() {
     setIsLoading(false)
   }
 
-  // Handle signup
+  // Handle signup step 1: Validate credentials and move to profile completion
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setIsLoading(true)
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    })
-
-    if (error) {
-      setError(error.message)
-      setIsLoading(false)
+    if (!name.trim()) {
+      setError('Please enter your full name.')
       return
     }
 
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address.')
+      return
+    }
+
+    if (!password || password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+
+    // Transition to role and profile completion without clearing credentials
     setAuthState('role-select')
-    setName('')
-    setEmail('')
-    setPassword('')
-    setIsLoading(false)
   }
 
-  // Handle role selection + student_id update
+  // Handle role selection + auto-confirmed account creation
   const handleRoleSelect = async (role: UserRole) => {
     setError(null)
     setIsLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      if (!name.trim()) {
+        setError('Please provide your full name.')
+        setIsLoading(false)
+        return
+      }
 
-    if (!user) {
-      setError('Error: Could not find user. Please log in again.')
-      setAuthState('login')
-      setIsLoading(false)
-      return
-    }
+      if (role === 'student' && (!studentId || isNaN(Number(studentId)))) {
+        setError('Please enter a valid numeric Student ID.')
+        setIsLoading(false)
+        return
+      }
 
-    const updateData: any = { role }
-    if (role === 'student') updateData.student_id = studentId
+      // 1. Call server registration endpoint (auto-confirms account & creates profile)
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          name: name.trim(),
+          role,
+          studentId: role === 'student' ? Number(studentId) : null
+        })
+      })
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', user.id)
+      const data = await res.json()
 
-    if (error) {
-      console.error('Profile update error:', error)
-      setError(error.message)
-    } else {
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create account. Please try again.')
+      }
+
+      // 2. Automatically log in to establish client-side session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      })
+
+      if (signInError) {
+        console.error('Auto sign-in error:', signInError)
+        setError('Account created successfully! Please sign in with your credentials.')
+        setAuthState('login')
+        setIsLoading(false)
+        return
+      }
+
+      // 3. User is authenticated and lands directly on their dashboard
       setUserRole(role)
       setIsAuthenticated(true)
       setAuthState('login')
       setShowLanding(false)
+      setEmail('')
+      setPassword('')
+      setName('')
+      setStudentId('')
+    } catch (err: any) {
+      console.error('Registration error:', err)
+      setError(err.message || 'An error occurred during registration.')
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   const handleLogout = async () => {
@@ -299,10 +332,10 @@ export default function Home() {
 
               <TabsContent value="student" className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-200">Student ID</label>
+                  <label className="text-sm font-medium text-slate-200">Student ID (Numeric)</label>
                   <Input
-                    type="text"
-                    placeholder="e.g., STU12345"
+                    type="number"
+                    placeholder="e.g., 2024001"
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
                     className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
@@ -314,7 +347,7 @@ export default function Home() {
                   className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Creating Profile...' : 'Continue as Student'}
+                  {isLoading ? 'Creating Account...' : 'Continue as Student'}
                 </Button>
               </TabsContent>
 
@@ -327,12 +360,25 @@ export default function Home() {
                   className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white text-lg font-semibold"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Creating Profile...' : 'Continue as Professor'}
+                  {isLoading ? 'Creating Account...' : 'Continue as Professor'}
                 </Button>
               </TabsContent>
             </Tabs>
 
             {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setAuthState('login')
+                }}
+                className="text-sm text-slate-400 hover:text-white transition-colors underline"
+              >
+                Already have an account? Back to Sign In
+              </button>
+            </div>
           </CardContent>
         </Card>
       </main>
@@ -344,7 +390,7 @@ export default function Home() {
       <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-slate-800 border-slate-700">
           <CardHeader className="space-y-2">
-            <CardTitle className="text-2xl text-white">Pragya</CardTitle>
+            <CardTitle className="text-2xl text-white">VidyaSetu</CardTitle>
             <CardDescription className="text-slate-400">
               Analytics-driven learning management system
             </CardDescription>

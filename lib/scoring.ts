@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * Pragya Centralized Scoring Engine
+ * VidyaSetu Centralized Scoring Engine
  * Authoritative constants and formulas for Overall Student Performance Scoring
  * ==============================================================================
  */

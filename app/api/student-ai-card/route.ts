@@ -44,22 +44,26 @@ export async function POST(req: NextRequest) {
       console.warn('[Student AI Card Route] Auth check note:', authErr)
     }
 
-    const body = await req.json()
-    const {
-      studentName = 'Student',
-      learnerTag = 'Moderate Learner',
-      subjects = [] as SubjectPerformanceInput[],
-      quizzes = [] as QuizResultInput[]
-    } = body
+    const body: {
+      studentName?: string
+      learnerTag?: string | null
+      subjects?: SubjectPerformanceInput[]
+      quizzes?: QuizResultInput[]
+    } = await req.json()
+
+    const studentName = body.studentName || 'Student'
+    const learnerTag = body.learnerTag || 'Moderate Learner'
+    const subjects: SubjectPerformanceInput[] = Array.isArray(body.subjects) ? body.subjects : []
+    const quizzes: QuizResultInput[] = Array.isArray(body.quizzes) ? body.quizzes : []
 
     // Calculate aggregated context metrics
-    const totalQuestions = subjects.reduce((sum, s) => sum + (s.totalQuestions || 0), 0)
-    const totalCorrect = subjects.reduce((sum, s) => sum + (s.correctAnswers || 0), 0)
+    const totalQuestions = subjects.reduce((sum: number, s: SubjectPerformanceInput) => sum + (s.totalQuestions || 0), 0)
+    const totalCorrect = subjects.reduce((sum: number, s: SubjectPerformanceInput) => sum + (s.correctAnswers || 0), 0)
     const overallAccuracy =
       subjects.length > 0
-        ? Math.round(subjects.reduce((sum, s) => sum + (s.avgAccuracy || 0), 0) / subjects.length)
+        ? Math.round(subjects.reduce((sum: number, s: SubjectPerformanceInput) => sum + (s.avgAccuracy || 0), 0) / subjects.length)
         : quizzes.length > 0
-        ? Math.round(quizzes.reduce((sum, q) => sum + (q.percentage || 0), 0) / quizzes.length)
+        ? Math.round(quizzes.reduce((sum: number, q: QuizResultInput) => sum + (q.percentage || 0), 0) / quizzes.length)
         : 0
 
     // 2. Read Groq API Key & Models
@@ -81,7 +85,7 @@ export async function POST(req: NextRequest) {
     let aiResult: any = null
 
     if (apiKey) {
-      const systemPrompt = `You are Pragya's AI Academic Diagnostic Engine.
+      const systemPrompt = `You are VidyaSetu's AI Academic Diagnostic Engine.
 Your task is to analyze a university student's real assessment performance and generate an insightful, highly personalized Academic Card output.
 
 RULES:
@@ -128,7 +132,7 @@ Respond ONLY with a valid JSON object matching this exact schema:
         overallAccuracy: `${overallAccuracy}%`,
         totalQuestionsAttempted: totalQuestions,
         totalCorrectAnswers: totalCorrect,
-        subjects: subjects.map((s) => ({
+        subjects: subjects.map((s: SubjectPerformanceInput) => ({
           subject: s.subject,
           accuracy: `${s.avgAccuracy}%`,
           totalQuestions: s.totalQuestions,
@@ -137,7 +141,7 @@ Respond ONLY with a valid JSON object matching this exact schema:
           strongestTopics: s.strongestTopics,
           weakestTopics: s.weakestTopics
         })),
-        recentQuizzes: quizzes.slice(0, 3).map((q) => ({
+        recentQuizzes: quizzes.slice(0, 3).map((q: QuizResultInput) => ({
           title: q.quiz_title,
           percentage: `${q.percentage}%`,
           submittedAt: q.submitted_at
@@ -216,7 +220,7 @@ function generateIntelligentFallback(
   else if (overallAccuracy >= 50) quote = 'Every challenge is an opportunity to strengthen your foundations.'
   else quote = 'Every expert was once a beginner. Consistency is key.'
 
-  const subjectInsights = subjects.map((s) => {
+  const subjectInsights = subjects.map((s: SubjectPerformanceInput) => {
     let performance = 'Good'
     if (s.avgAccuracy >= 80) performance = 'Excellent'
     else if (s.avgAccuracy >= 65) performance = 'Good'
@@ -251,11 +255,11 @@ function generateIntelligentFallback(
     detailedSummary: {
       overallPerformance: `${studentName} demonstrates an overall mastery rate of ${overallAccuracy}% across ${subjects.length} active subjects.`,
       keyInsights: [
-        `Overall accuracy stands at ${overallAccuracy}% across ${subjects.reduce((a, b) => a + b.totalQuestions, 0)} attempted practice problems.`,
+        `Overall accuracy stands at ${overallAccuracy}% across ${subjects.reduce((a: number, b: SubjectPerformanceInput) => a + b.totalQuestions, 0)} attempted practice problems.`,
         subjects.length > 0 ? `Strongest domain detected: ${subjects[0]?.subject}.` : 'Building broad curriculum competency.',
         `Pacing profile: averaging ${subjects[0]?.avgTime || 45} seconds per question across evaluated modules.`
       ],
-      criticalAreas: subjects.flatMap((s) => s.weakestTopics.slice(0, 1).map((w) => `${s.subject}: ${w.name}`)).slice(0, 3),
+      criticalAreas: subjects.flatMap((s: SubjectPerformanceInput) => s.weakestTopics.slice(0, 1).map((w: { name: string; accuracy: number }) => `${s.subject}: ${w.name}`)).slice(0, 3),
       actionPlan: `Allocate 30 minutes daily to high-priority review topics and complete weekly quizzes to solidify conceptual retention.`
     },
     subjectInsights,

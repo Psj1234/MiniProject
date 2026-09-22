@@ -93,7 +93,7 @@ export default function AppLayout({ userRole, onLogout }: AppLayoutProps) {
               {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-white">Pragya</h1>
+              <h1 className="text-2xl font-bold text-white">VidyaSetu</h1>
               <p className="text-xs text-slate-400">
                 {userRole === 'professor' ? 'Professor Dashboard' : 'Student Dashboard'}
               </p>
