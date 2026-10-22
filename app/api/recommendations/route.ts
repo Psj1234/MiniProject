@@ -14,13 +14,6 @@ function getAdminSupabase() {
   })
 }
 
-export {
-  getLeetCodeUrl,
-  getGeeksForGeeksUrl,
-  type ResourceItem,
-  type RecommendationItem,
-  type PersonalizedPlan
-} from '@/lib/recommendations'
 import {
   getLeetCodeUrl,
   getGeeksForGeeksUrl,
